@@ -42,6 +42,23 @@ func main() {
 		log.Fatalf("could not subscribe to pause messages: %v", err)
 	}
 
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.ArmyMovesPrefix+"."+username,
+		routing.ArmyMovesPrefix+".*",
+		pubsub.SimpleQueueTransient,
+		handlerMove(gameState),
+	)
+	if err != nil {
+		fmt.Printf("could not subscribe to army moves: %v", err)
+	}
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("could not create channel: %v", err)
+	}
+
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
@@ -56,12 +73,22 @@ func main() {
 				continue
 			}
 		case "move":
-			_, err = gameState.CommandMove(words)
+			move, err := gameState.CommandMove(words)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
-			fmt.Println("Move successful")
+			err = pubsub.PublishJSON(
+				ch,
+				routing.ExchangePerilTopic,
+				routing.ArmyMovesPrefix+"."+username,
+				move,
+			)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			fmt.Println("Move published successfully")
 		case "status":
 			gameState.CommandStatus()
 		case "help":
@@ -81,5 +108,12 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 	return func(ps routing.PlayingState) {
 		defer fmt.Print("> ")
 		gs.HandlePause(ps)
+	}
+}
+
+func handlerMove(gs *gamelogic.GameState) func(move gamelogic.ArmyMove) {
+	return func(move gamelogic.ArmyMove) {
+		defer fmt.Print("> ")
+		gs.HandleMove(move)
 	}
 }
