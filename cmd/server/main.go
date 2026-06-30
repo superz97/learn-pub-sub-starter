@@ -30,7 +30,7 @@ func main() {
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
-		routing.GameLogSlug+".",
+		routing.GameLogSlug+".*",
 		pubsub.SimpleQueueDurable)
 	if err != nil {
 		log.Fatalf("could not create channel: %v", err)
