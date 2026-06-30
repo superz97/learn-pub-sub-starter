@@ -26,14 +26,16 @@ func main() {
 	gamelogic.PrintServerHelp()
 
 	ch, err := conn.Channel()
-	_, _, err = pubsub.DeclareAndBind(
+	err = pubsub.SubscribeGob(
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		routing.GameLogSlug+".*",
-		pubsub.SimpleQueueDurable)
+		pubsub.SimpleQueueDurable,
+		handlerGameLog,
+	)
 	if err != nil {
-		log.Fatalf("could not create channel: %v", err)
+		log.Fatalf("could not subscribe to game logs: %v", err)
 	}
 
 serverLoop:
@@ -69,4 +71,14 @@ serverLoop:
 	}
 
 	fmt.Println("Shutting down Peril server...")
+}
+
+func handlerGameLog(gl routing.GameLog) pubsub.AckType {
+	defer fmt.Print("> ")
+	err := gamelogic.WriteLog(gl)
+	if err != nil {
+		fmt.Printf("error writing log: %v\n", err)
+		return pubsub.NackRequeue
+	}
+	return pubsub.Ack
 }
