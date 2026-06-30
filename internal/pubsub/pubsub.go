@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -54,7 +55,9 @@ func DeclareAndBind(
 	autoDelete := queueType == SimpleQueueTransient
 	exclusive := queueType == SimpleQueueTransient
 
-	queue, err := ch.QueueDeclare(queueName, durable, autoDelete, exclusive, false, nil)
+	queue, err := ch.QueueDeclare(queueName, durable, autoDelete, exclusive, false, amqp.Table{
+		"x-dead-letter-exchange": routing.ExchangePerilDLX,
+	})
 	if err != nil {
 		return nil, amqp.Queue{}, err
 	}
